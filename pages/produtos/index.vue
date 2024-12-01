@@ -1,0 +1,251 @@
+<template>
+  <v-container fluid>
+    <v-card>
+      <v-card-title class="headline">Lista de Produtos</v-card-title>
+      <v-row align="center" justify="space-between">
+        <v-col cols="12" sm="6" md="4" class="d-flex justify-center">
+          <v-btn color="primary" @click="abrirModal" rounded>
+            <v-icon left>mdi-plus-circle</v-icon> Adicionar Produto
+          </v-btn>
+        </v-col>
+        <v-col cols="12" sm="6" md="8">
+          <v-text-field
+            v-model="filtro"
+            label="Filtrar produtos..."
+            outlined
+            dense
+            append-icon="mdi-magnify"
+          />
+        </v-col>
+      </v-row>
+    </v-card>
+
+    <v-card class="mt-4">
+      <v-simple-table v-if="produtos.length" class="custom-table">
+        <thead>
+          <tr>
+            <th class="th-nome">Nome</th>
+            <th class="th-descricao">Descrição</th>
+            <th class="th-quantidade">Quantidade</th>
+            <th class="th-categoria">Categoria</th>
+            <th class="th-acoes">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="produto in produtosFiltrados" :key="produto.id">
+            <td>{{ produto.nome }}</td>
+            <td>{{ produto.descricao }}</td>
+            <td>{{ produto.quantidade }}</td>
+            <td>{{ produto.categoria }}</td>
+            <td>
+              <v-row no-gutters>
+                <v-col cols="6" class="d-flex justify-center">
+                  <v-btn small color="yellow" @click="editarProduto(produto)">
+                     Editar
+                  </v-btn>
+                </v-col>
+                <v-col cols="6" class="d-flex justify-center">
+                  <v-btn small color="red" @click="confirmarExcluirProduto(produto)">
+                    Excluir
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </td>
+          </tr>
+        </tbody>
+      </v-simple-table>
+      <v-alert v-else type="info" class="mt-4 white--text" outlined color="white">
+        Nenhum produto cadastrado.
+      </v-alert>
+    </v-card>
+
+    <v-dialog v-model="modalCadastro" max-width="500px">
+      <v-card>
+        <v-card-text>
+          <CadastrarProduto
+            :produtoInicial="produtoSelecionado"
+            @produtoSalvo="atualizarProduto"
+            @fechar="fecharModal"
+          />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+  </v-container>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+import CadastrarProduto from './ProdutoFormulario.vue';
+
+const { $axios } = useNuxtApp();
+
+const produtos = ref([]);
+const filtro = ref('');
+const produtoSelecionado = ref(null);
+const modalCadastro = ref(false);
+
+onMounted(() => carregarProdutos());
+
+const carregarProdutos = async () => {
+  try {
+    const [produtosResponse, categoriasResponse] = await Promise.all([
+      $axios.get('/api/produto'),
+      $axios.get('/api/categoria'),
+    ]);
+
+    const categoriasMap = Object.fromEntries(
+      categoriasResponse.data.map((categoria) => [categoria.id, categoria.nome])
+    );
+
+    produtos.value = produtosResponse.data.map((produto) => ({
+      ...produto,
+      categoria: categoriasMap[produto.categoriaId] || 'Sem categoria',
+    }));
+  } catch (error) {
+    console.error('Erro ao carregar produtos ou categorias:', error);
+    produtos.value = [];
+  }
+};
+
+const produtosFiltrados = computed(() => {
+  if (!filtro.value) return produtos.value;
+  return produtos.value.filter((produto) => {
+    return (
+      produto.nome.toLowerCase().includes(filtro.value.toLowerCase()) ||
+      produto.descricao.toLowerCase().includes(filtro.value.toLowerCase()) ||
+      produto.categoria.toLowerCase().includes(filtro.value.toLowerCase())
+    );
+  });
+});
+
+const abrirModal = () => {
+  produtoSelecionado.value = null;
+  modalCadastro.value = true;
+};
+
+const editarProduto = (produto) => {
+  produtoSelecionado.value = { ...produto };
+  modalCadastro.value = true;
+};
+
+const fecharModal = () => {
+  modalCadastro.value = false;
+  carregarProdutos();
+};
+
+const atualizarProduto = (produto) => {
+  if (produtoSelecionado.value) {
+    const index = produtos.value.findIndex((p) => p.id === produto.id);
+    if (index !== -1) produtos.value[index] = produto;
+  } else {
+    produtos.value.push(produto);
+  }
+  fecharModal();
+};
+
+const confirmarExcluirProduto = async (produto) => {
+  if (confirm('Tem certeza que deseja excluir este produto?')) {
+    try {
+      await $axios.delete(`/api/produto/${produto.id}`);
+      produtos.value = produtos.value.filter((p) => p.id !== produto.id);
+    } catch (error) {
+      console.error('Erro ao excluir produto:', error);
+    }
+  }
+};
+</script>
+
+<style scoped>
+.v-btn {
+  font-weight: bold;
+}
+
+.v-alert {
+  margin-top: 20px;
+}
+
+.v-btn small {
+  margin-right: 8px;
+}
+
+.custom-table th, .custom-table td {
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  vertical-align: middle;
+}
+
+.custom-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.custom-table tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.custom-table tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+.custom-table .th-nome {
+  width: 25%;
+}
+
+.custom-table .th-descricao {
+  width: 35%;
+}
+
+.custom-table .th-quantidade {
+  width: 15%;
+}
+
+.custom-table .th-categoria {
+  width: 10%;
+}
+
+.custom-table .th-acoes {
+  width: 15%;
+}
+
+.custom-table td {
+  word-wrap: break-word;
+}
+
+.v-card .custom-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.custom-table .v-btn {
+  font-size: 14px;
+  margin-right: 8px;
+}
+
+@media (max-width: 600px) {
+  .custom-table th, .custom-table td {
+    padding: 12px 8px;
+  }
+
+  .custom-table .th-nome,
+  .custom-table .th-descricao,
+  .custom-table .th-quantidade,
+  .custom-table .th-categoria,
+  .custom-table .th-acoes {
+    font-size: 12px;
+  }
+
+  .v-card-title {
+    font-size: 18px;
+  }
+
+  .custom-table .v-row {
+    flex-direction: column;
+  }
+
+  .custom-table .v-col {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+}
+</style>
