@@ -16,13 +16,13 @@ npm run dev
 
 ### Em seguida, acesse a seguinte URL no navegador: http://localhost:3000
 
-## URLs dos endpoints
+## URLs dos endpoints:
 
 http://localhost:5202/api/produto
 
 http://localhost:5202/api/Categoria
 
-## Tecnologias utilizadas
+## Tecnologias utilizadas:
 
 -SqlLite
 
