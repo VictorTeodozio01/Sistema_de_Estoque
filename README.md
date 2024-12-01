@@ -32,6 +32,8 @@ http://localhost:5202/api/Categoria
 
 -Vuetify
 
+-C#
+
 
 ## Modelagem:
 
